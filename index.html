@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Veeva QDocs Search</title>
+<style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        .container {
+            text-align: center;
+            width: 80%;
+        }
+        .input-field {
+            width: 60%;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 16px;
+            border-radius: 24px;
+            border: 1px solid #ddd;
+        }
+        .button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 24px;
+            background-color: #4285f4;
+            color: white;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: #357ae8;
+        }
+        .error-message {
+            color: red;
+            margin-top: 10px;
+        }
+        .results {
+            margin-top: 20px;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #fff;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            display: none; /* Hide table initially */
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f5f5;
+        }
+
+
+</style>
+</head>
+<body>
+
+ 
+
+ 
+
+    <div class="container">
+<h2 style="color:rgb(240, 66, 13);" > CLINICAL DOCUMENTS </h2>
+
+ 
+
+  
+<input type="text" id="search-input" class="input-field" placeholder="Enter search term...">
+<div>
+<button class="button" onclick="searchDocuments()">Search Documents</button>
+
+</div>
+<div id="error-message" class="error-message"></div>
+<div id="document-count"></div> <!-- To display number of available documents -->
+
+ 
+
+        <!-- Table to display the results -->
+<table id="data-table">
+<thead>
+<tr>
+<th>Document ID</th>
+<th>Document Name</th>
+<th>Life Cycle</th>
+<th>Document Type</th>
+<th>Document Status</th>
+</tr>
+</thead>
+<tbody>
+<!-- Table rows will be inserted dynamically here -->
+</tbody>
+</table>
+</div>
+
+ 
+
+    <script>
+        let sessionId = ''; // Declare sessionId globally
+
+ 
+
+        // Automatically perform login when the page loads
+        window.onload = performLogin;
+
+ 
+
+        async function performLogin() {
+            const username = 'prana.user10@partnersi-prana4life.com';
+            const password = 'PranaU$er10';
+            const errorMessage = document.getElementById('error-message');
+
+ 
+
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+
+ 
+
+            try {
+                const loginResponse = await fetch(
+                    'https://cors-anywhere.herokuapp.com/https://partnersi-prana4life-clinical.veevavault.com/api/v24.1/auth',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: formData,
+                    }
+                );
+
+ 
+
+                if (!loginResponse.ok) {
+                    const errorText = await loginResponse.text();
+                    throw new Error(`Login failed: ${errorText}`);
+                }
+
+ 
+
+                const loginData = await loginResponse.json();
+                sessionId = loginData.sessionId;  // Store sessionId
+            } catch (error) {
+                errorMessage.innerText = error.message;
+            }
+        }
+
+ 
+
+        async function searchDocuments() {
+            const query = document.getElementById('search-input').value.trim();
+            const errorMessage = document.getElementById('error-message');
+            const dataTable = document.getElementById('data-table');
+            const dataTableBody = dataTable.getElementsByTagName('tbody')[0];
+            const documentCount = document.getElementById('document-count');
+
+ 
+
+            if (!query) {
+                errorMessage.innerText = 'Please enter a search term.';
+                dataTableBody.innerHTML = ''; // Clear table if no search term
+                dataTable.style.display = 'none'; // Hide table
+        backButton.style.display = 'none';
+                return;
+            }
+
+ 
+
+            if (!sessionId) {
+                errorMessage.innerText = 'You must log in first.';
+                return;
+            }
+
+ 
+
+            try {
+                const apiUrl = `https://cors-anywhere.herokuapp.com/https://partnersi-prana4life-clinical.veevavault.com/api/v24.2/objects/documents?search=${encodeURIComponent(query)}`;
+
+ 
+
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': sessionId,  // Use sessionId directly
+                        'Accept': 'application/json',
+                    },
+                });
+
+ 
+
+                if (!response.ok) {
+                    throw new Error('Search failed. Please try again.');
+                }
+
+ 
+
+                const data = await response.json();
+
+ 
+
+                // Check if no documents found
+                if (data.size === 0 || !data.documents || !Array.isArray(data.documents)) {
+                    errorMessage.innerText = 'Document Name does not match.';
+                    dataTableBody.innerHTML = ''; // Clear table
+                    dataTable.style.display = 'none'; // Hide table
+
+                    return;
+                }
+
+ 
+
+                // Clear previous results and error message
+                dataTableBody.innerHTML = '';
+                errorMessage.innerText = '';
+                documentCount.innerText = `Number of Available Documents: ${data.size}`;
+
+ 
+
+                // Display the documents in the table
+                data.documents.forEach(document => {
+                    const row = dataTableBody.insertRow();
+
+ 
+
+                    const documentIdCell = row.insertCell(0);
+                    documentIdCell.innerText = document.document.id || 'N/A';
+
+ 
+
+                    const documentNameCell = row.insertCell(1);
+                    documentNameCell.innerText = document.document.name__v || 'N/A';
+
+ 
+
+                    const lifeCycleCell = row.insertCell(2);
+                    lifeCycleCell.innerText = document.document.lifecycle__v || 'N/A';
+
+ 
+
+                    const documentTypeCell = row.insertCell(3);
+                    documentTypeCell.innerText = document.document.type__v || 'N/A';
+
+ 
+
+                    const documentStatusCell = row.insertCell(4);
+                    documentStatusCell.innerText = document.document.status__v || 'N/A';
+                });
+
+ 
+
+                dataTable.style.display = 'table'; // Show the table
+
+ 
+
+            } catch (error) {
+                errorMessage.innerText = error.message;
+                dataTableBody.innerHTML = ''; // Clear the table on error
+                dataTable.style.display = 'none'; // Hide table
+            }
+        }
+
+</script>
+</body>
+</html>
